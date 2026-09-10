@@ -86,7 +86,9 @@ class MediaListenerService : NotificationListenerService() {
             artist = best.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST),
             durationMs = best.metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L,
             positionMs = best.playbackState?.position ?: 0L,
-            isPlaying = best.playbackState?.state == PlaybackState.STATE_PLAYING
+            isPlaying = best.playbackState?.state == PlaybackState.STATE_PLAYING,
+            albumArt = best.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+                ?: best.metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
         )
     }
 

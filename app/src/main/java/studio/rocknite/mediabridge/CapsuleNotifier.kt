@@ -4,12 +4,22 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.Icon
 import android.os.Build
 
 /**
  * Construit la notif ProgressStyle + requestPromotedOngoing = la capsule
- * Live Update d'Android 16. Le titre du morceau change rarement (pas de
- * risque de rate-limiting), la progression suit la position de lecture.
+ * Live Update d'Android 16.
+ *
+ * Le chip "collapsed" dans la status bar est minuscule : il ne peut afficher
+ * qu'une icône (+ un court texte/chrono en option), pas le titre en entier.
+ * Le titre complet, l'artiste et la pochette s'affichent quand on déroule
+ * le shade ou sur le lockscreen -> on met la pochette comme icône du
+ * "tracker" (celle qui se déplace le long de la barre de progression, donc
+ * visible même en collapsed si le système la montre à la place du smallIcon
+ * générique) et comme largeIcon pour la vue étendue.
  */
 object CapsuleNotifier {
 
@@ -22,15 +32,21 @@ object CapsuleNotifier {
         artist: String?,
         durationMs: Long,
         positionMs: Long,
-        isPlaying: Boolean
+        isPlaying: Boolean,
+        albumArt: Bitmap? = null
     ) {
         ensureChannel(context)
 
-        val progressMax = if (durationMs > 0) (durationMs / 1000).toInt() else 100
-        val progressCurrent = (positionMs / 1000).toInt().coerceIn(0, progressMax)
+        // Durée/position en secondes : l'unité de ProgressStyle est arbitraire
+        // (juste "la même unité que Segment.getLength()"), les secondes sont
+        // largement assez précises pour une barre de lecture.
+        val durationSec = (durationMs / 1000).toInt().coerceAtLeast(1)
+        val positionSec = (positionMs / 1000).toInt().coerceIn(0, durationSec)
+
+        val albumArtIcon = albumArt?.let { Icon.createWithBitmap(it) }
 
         val builder = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play) // TODO: remplacer par une icône MediaBridge
+            .setSmallIcon(android.R.drawable.ic_media_play) // icône silhouette requise par le système, garde un fallback simple
             .setContentTitle(title)
             .setContentText(artist ?: "")
             .setOngoing(isPlaying)
@@ -42,13 +58,26 @@ object CapsuleNotifier {
                 putBoolean("android.requestPromotedOngoing", true)
             })
 
+        if (albumArtIcon != null) {
+            builder.setLargeIcon(albumArt)
+        }
+
         if (Build.VERSION.SDK_INT >= 36) { // Build.VERSION_CODES.BAKLAVA
-            // NOTE: je laisse le ProgressStyle "nu" pour l'instant. Les méthodes
-            // setProgressPoints/setProgressSegments existent bien sur l'API mais
-            // leurs signatures exactes ont bougé entre les bêtas Android 16 -> à
-            // vérifier/brancher une fois testé en local contre le vrai SDK 36,
-            // plutôt que de deviner une signature qui casserait le build CI.
-            builder.style = Notification.ProgressStyle()
+            val progressStyle = Notification.ProgressStyle()
+                .setStyledByProgress(false)
+                .setProgressSegments(
+                    listOf(
+                        Notification.ProgressStyle.Segment(durationSec)
+                            .setColor(Color.parseColor("#1DB954")) // vert-ish, à remplacer par ton thème turquoise
+                    )
+                )
+                .setProgress(positionSec)
+
+            if (albumArtIcon != null) {
+                progressStyle.setProgressTrackerIcon(albumArtIcon)
+            }
+
+            builder.style = progressStyle
         }
 
         val manager = context.getSystemService(NotificationManager::class.java)
