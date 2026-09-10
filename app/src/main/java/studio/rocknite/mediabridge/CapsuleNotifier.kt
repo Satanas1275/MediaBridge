@@ -45,12 +45,16 @@ object CapsuleNotifier {
 
         val albumArtIcon = albumArt?.let { Icon.createWithBitmap(it) }
 
+        val remainingSec = (durationSec - positionSec).coerceAtLeast(0)
+        val shortCriticalText = "%d:%02d".format(remainingSec / 60, remainingSec % 60)
+
         val builder = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play) // icône silhouette requise par le système, garde un fallback simple
             .setContentTitle(title)
             .setContentText(artist ?: "")
             .setOngoing(isPlaying)
             .setOnlyAlertOnce(true)
+            .setShortCriticalText(shortCriticalText) // seul contenu texte que le chip status bar peut réalistement afficher (max ~7 car.)
             .setExtras(android.os.Bundle().apply {
                 // Constante Notification.EXTRA_REQUEST_PROMOTED_ONGOING pas encore
                 // présente dans le compileSdk 36 stable dispo en CI (ajoutée dans une
