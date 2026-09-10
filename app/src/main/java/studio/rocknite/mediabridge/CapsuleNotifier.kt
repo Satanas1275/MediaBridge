@@ -36,17 +36,19 @@ object CapsuleNotifier {
             .setOngoing(isPlaying)
             .setOnlyAlertOnce(true)
             .setExtras(android.os.Bundle().apply {
-                putBoolean(Notification.EXTRA_REQUEST_PROMOTED_ONGOING, true)
+                // Constante Notification.EXTRA_REQUEST_PROMOTED_ONGOING pas encore
+                // présente dans le compileSdk 36 stable dispo en CI (ajoutée dans une
+                // QPR ultérieure côté API publique) -> clé brute, marche pareil au runtime.
+                putBoolean("android.requestPromotedOngoing", true)
             })
 
         if (Build.VERSION.SDK_INT >= 36) { // Build.VERSION_CODES.BAKLAVA
-            val progressStyle = Notification.ProgressStyle()
-                .setProgress(progressCurrent)
-            builder.style = progressStyle
-            // setProgress(max, current, indeterminate) côté ProgressStyle attend
-            // qu'on configure aussi le "track" total via setProgressMax si dispo
-            // sur l'API finale — à vérifier contre la doc au moment du build,
-            // l'API a bougé plusieurs fois entre les bêtas Android 16.
+            // NOTE: je laisse le ProgressStyle "nu" pour l'instant. Les méthodes
+            // setProgressPoints/setProgressSegments existent bien sur l'API mais
+            // leurs signatures exactes ont bougé entre les bêtas Android 16 -> à
+            // vérifier/brancher une fois testé en local contre le vrai SDK 36,
+            // plutôt que de deviner une signature qui casserait le build CI.
+            builder.style = Notification.ProgressStyle()
         }
 
         val manager = context.getSystemService(NotificationManager::class.java)
